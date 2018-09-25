@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -23,6 +24,7 @@ namespace ShipFastTurn
     public partial class MainWindow : Window
     {
         ViewModel Model;
+        Configuration Config;
         Winmm.TIMECALLBACK m_func1, m_func2;
         int m_timer1, m_timer2;
         long m_freq, m_tick;
@@ -32,11 +34,13 @@ namespace ShipFastTurn
         public MainWindow()
         {
             InitializeComponent();
+
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             Model = DataContext as ViewModel;
+            Config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
 
             Kernel32.QueryPerformanceFrequency(out m_freq);
             Kernel32.QueryPerformanceCounter(out m_tick);
@@ -51,10 +55,40 @@ namespace ShipFastTurn
             m_func2 = new Winmm.TIMECALLBACK(Timer2_Elapsed);
             m_timer1 = Winmm.timeSetEvent(100, 1, m_func1, IntPtr.Zero, 1/*TIME_PERIODIC*/);
             m_timer2 = Winmm.timeSetEvent(1, 1, m_func2, IntPtr.Zero, 1/*TIME_PERIODIC*/);
+
+            if (Config.AppSettings.Settings["Speed"] != null)
+            {
+                if (double.TryParse(Config.AppSettings.Settings["Speed"].Value, out double val))
+                {
+                    Model.Speed = val;
+                }
+            }
+
+            if (Config.AppSettings.Settings["Accel"] != null)
+            {
+                if (double.TryParse(Config.AppSettings.Settings["Accel"].Value, out double val))
+                {
+                    Model.Accel = val;
+                }
+            }
         }
 
         private void Window_Closed(object sender, EventArgs e)
         {
+            if (Config.AppSettings.Settings["Speed"] == null)
+            {
+                Config.AppSettings.Settings.Add("Speed", null);
+            }
+
+            if (Config.AppSettings.Settings["Accel"] == null)
+            {
+                Config.AppSettings.Settings.Add("Accel", null);
+            }
+
+            Config.AppSettings.Settings["Speed"].Value = Model.Speed.ToString();
+            Config.AppSettings.Settings["Accel"].Value = Model.Accel.ToString();
+            Config.Save();
+
             Winmm.timeKillEvent(m_timer1);
             Winmm.timeKillEvent(m_timer2);
         }
